@@ -1,0 +1,3 @@
+[submodule "third-party/libfort"]
+	path = third-party/libfort
+	url = git@github.com:seleznevae/libfort.git

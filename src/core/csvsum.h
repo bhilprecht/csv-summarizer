@@ -7,6 +7,7 @@
 #include <unordered_map>
 #include <queue>
 #include <boost/lexical_cast.hpp>
+#include "fort.hpp"
 
 using boost::bad_lexical_cast;
 using boost::lexical_cast;
@@ -53,6 +54,7 @@ namespace csvsum
 
             char c;
 
+            // todo header
             // todo escapechar
             std::fstream fin(path, std::fstream::in);
             while (fin >> std::noskipws >> c)
@@ -121,7 +123,6 @@ namespace csvsum
             c.float_frac = (double)c.numeric_rows / c.no_rows;
             while (!q.empty())
             {
-                //cout << "Freq val: " << q.top().second << " Occ: " << -q.top().first << endl;
                 c.most_frequent.push_back(q.top().second);
                 q.pop();
             }
@@ -139,28 +140,45 @@ namespace csvsum
 
         void summarize()
         {
+            fort::char_table table;
+            table << fort::header
+                  << "Numeric Vals (%)"
+                  << "Avg"
+                  << "Min"
+                  << "Max"
+                  << "No Distinct"
+                  << "Frequent Vals" << fort::endr;
+
             std::cout << "Reading path: " << path << endl;
             vector<unordered_map<string, int>> cell_contens = read_csv_cells();
-            vector<CellStats> v;
             for (int i = 0; i < cell_contens.size(); i++)
             {
-                cout << "Column " << i << endl;
                 CellStats c;
                 analyze_col(cell_contens[i], c);
-                cout << "Interpretable as numeric: " << c.float_frac * 100 << "%" << endl;
+
+                table << std::setprecision(4) << c.float_frac * 100;
                 if (c.numeric_rows > 0)
                 {
-                    cout << "Average: " << c.avg << endl;
-                    cout << "Min: " << c.min << endl;
-                    cout << "Max: " << c.max << endl;
+                    table << c.avg << c.min << c.max;
                 }
-                cout << "No distinct: " << c.no_distinct_vals << endl;
-                for (auto &e : c.most_frequent)
+                else
                 {
-                    cout << e << " ";
+                    table << ""
+                          << ""
+                          << "";
                 }
-                v.push_back(c);
+                table << c.no_distinct_vals;
+
+                string mf = "";
+                for (int i = c.most_frequent.size() - 1; i >= 0; i--)
+                {
+                    if (i < c.most_frequent.size() - 1)
+                        mf += ", ";
+                    mf += c.most_frequent[i];
+                }
+                table << mf << fort::endr;
             }
+            std::cout << table.to_string() << std::endl;
         }
     };
 }

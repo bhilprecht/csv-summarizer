@@ -12,9 +12,12 @@ if(NOT Boost_FOUND)
     message(FATAL_ERROR "Boost Not found")
 endif()
 
+set(FORT_ENABLE_TESTING OFF CACHE INTERNAL "")
+add_subdirectory(third-party/libfort)
+
 add_executable(example src/examples/main.cpp)
 
-target_link_libraries(example ${Boost_LIBRARIES})
+target_link_libraries(example ${Boost_LIBRARIES} fort)
 
 set(CPACK_PROJECT_NAME ${PROJECT_NAME})
 set(CPACK_PROJECT_VERSION ${PROJECT_VERSION})

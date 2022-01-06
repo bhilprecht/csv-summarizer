@@ -13,8 +13,8 @@ The project was built on VS code with the CMake extension.
 ## Todos
 
 - parse headers
-- pretty output
 - tests
 - performance 
 - do this with sampling
 - as command line application
+- parallelize
