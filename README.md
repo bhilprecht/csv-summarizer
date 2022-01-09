@@ -12,7 +12,6 @@ The project was built on VS code with the CMake extension.
 
 ## Todos
 
-- parse headers
 - tests
 - performance 
 - do this with sampling
