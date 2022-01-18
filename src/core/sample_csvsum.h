@@ -11,7 +11,6 @@ namespace csvsum
         int no_samples;
         int skip_value;
 
-    public:
         std::string read_surrounding_line(long long &offset, std::ifstream &in)
         {
 
@@ -85,7 +84,7 @@ namespace csvsum
 
         // Just read the file line per line into a vector of vectors (representing cells)
         // Also consider quoted and escaped newlines.
-        vector<vector<std::string>> read_lines(vector<int> &row_sizes, long long &file_size)
+        vector<vector<std::string>> read_lines(vector<int> &row_sizes, long long &file_size, long long &no_rows)
         {
             std::ifstream in(path);
 
@@ -114,11 +113,17 @@ namespace csvsum
 
             // sample rows and parse them
             std::string currline = "";
+            // The goal is to estimate the avg number of chars per row. Since we observe a biased sample (larger rows are seen more often),
+            // we have to keep track of inverted sum of row widths
+            double inv_rwidth_sum = 0;
+
             for (int i = 0; i < this->no_samples; i++)
             {
                 long long offset = (maxlength - minlength) * (rand() / (double)RAND_MAX) + minlength;
                 currline = read_surrounding_line(offset, in);
                 row_sizes.push_back(currline.size());
+
+                inv_rwidth_sum += (double)1 / currline.size();
 
                 for (char c : currline)
                 {
@@ -126,11 +131,23 @@ namespace csvsum
                 }
             }
 
+            double avg_row_width = this->no_samples / inv_rwidth_sum;
+            no_rows = std::round(file_size / avg_row_width);
+
             in.close();
             return lines;
         }
 
-        SampleCSVSummarizer(std::string path, bool header, char sep, int no_samples, int skip_value) : no_samples(no_samples), skip_value(skip_value), CSVSummarizer(path, header, sep)
+    public:
+        // this summarizer does not support quotechars (since in this case it is not clear when to stop reading).
+        // Hence, this character defaults to \0
+        SampleCSVSummarizer(std::string path, bool header, char sep, char line_break, char escape_char, int no_most_freq, int no_samples, int skip_value)
+            : no_samples(no_samples), skip_value(skip_value), CSVSummarizer(path, header, sep, line_break, escape_char, '\0', no_most_freq)
+        {
+        }
+
+        SampleCSVSummarizer(std::string path, bool header, char sep, int no_samples, int skip_value)
+            : no_samples(no_samples), skip_value(skip_value), CSVSummarizer(path, header, sep, '\n', '\\', '\0', 3)
         {
         }
 
@@ -138,97 +155,9 @@ namespace csvsum
         {
         }
 
-        // Compute the statistics per column
-        void analyze_col(std::unordered_map<std::string, double> &cm, CellStats &c)
+        void summarize(bool verbose)
         {
-            c.no_distinct_vals = cm.size();
-            std::priority_queue<std::pair<int, std::string>> q;
-
-            double fwsum = 0;
-            double wsum = 0;
-
-            for (auto &value_count : cm)
-            {
-                std::string val = value_count.first;
-                double w = value_count.second;
-                wsum += w;
-
-                // try to treat as numeric value and update stats
-                try
-                {
-                    double fval = boost::lexical_cast<double>(val);
-
-                    c.has_numeric_rows = true;
-                    c.avg += w * fval;
-                    fwsum += w;
-
-                    c.max = std::max(c.max, fval);
-                    c.min = std::min(c.min, fval);
-                }
-                catch (boost::bad_lexical_cast &)
-                {
-                }
-
-                q.push(std::make_pair(-w, val));
-                if (q.size() > no_most_freq)
-                {
-                    q.pop();
-                }
-            }
-            c.avg /= fwsum;
-            c.float_frac = fwsum/wsum;
-
-            while (!q.empty())
-            {
-                c.most_frequent.push_back(q.top().second);
-                q.pop();
-            }
-        }
-
-        vector<CellStats> analyze_columns(vector<std::string> &col_names, vector<vector<std::string>> &lines, vector<int> &row_sizes, long long &file_size)
-        {
-            vector<CellStats> stats;
-            for (int j = 0; j < col_names.size(); j++)
-            {
-                CellStats c;
-                for (int i = 0; i < lines.size(); i++)
-                {
-                    if (lines[i].size() >= j)
-                        continue;
-
-                    std::string val = lines[i][j];
-                    int rs = row_sizes[i];
-                }
-
-                stats.push_back(c);
-            }
-            return stats;
-        }
-
-        void summarize()
-        {
-
-            std::cout << "Reading path: " << this->path << std::endl;
-
-            /*auto begin = std::chrono::steady_clock::now();
-            auto end = std::chrono::steady_clock::now();
-            std::cout << "Time to read file = " << std::chrono::duration_cast<std::chrono::milliseconds>(end - begin).count() << "[ms]" << std::endl;*/
-
-            vector<int> row_sizes;
-            long long file_size;
-            vector<vector<std::string>> lines = read_lines(row_sizes, file_size);
-            vector<std::string> col_names;
-            vector<std::unordered_map<std::string, double>> cell_contents = read_csv_cells(lines, col_names, row_sizes);
-
-            vector<CellStats> stats;
-            for (auto &cell_content : cell_contents)
-            {
-                CellStats c;
-                analyze_col(cell_content, c);
-                stats.push_back(c);
-            }
-
-            print_summary(stats, col_names);
+            _summarize(true, this->no_samples, verbose);
         }
     };
 

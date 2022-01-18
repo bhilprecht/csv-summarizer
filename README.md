@@ -12,10 +12,7 @@ The project was built on VS code with the CMake extension.
 
 ## Todos
 
-- refactor (join with full sample as much as possible, analyze cols)
-- ignore quotechar in sample based 
-- header files
-- output number of rows
+- adapt types
 - tests
 - performance
 - as command line application
