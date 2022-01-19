@@ -12,7 +12,7 @@ The project was built on VS code with the CMake extension.
 
 ## Todos
 
-- as command line application
+- expand readme (git clone recurse submodules, example how to use and install)
 - little demo
 - performance
 - adapt types

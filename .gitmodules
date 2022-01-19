@@ -1,3 +1,6 @@
 [submodule "third-party/libfort"]
 	path = third-party/libfort
 	url = git@github.com:seleznevae/libfort.git
+[submodule "third-party/argparse"]
+	path = third-party/argparse
+	url = git@github.com:p-ranav/argparse.git

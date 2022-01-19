@@ -11,9 +11,10 @@ endif()
 
 set(FORT_ENABLE_TESTING OFF CACHE INTERNAL "")
 add_subdirectory(third-party/libfort)
+add_subdirectory(third-party/argparse)
 
 add_executable(csvsum src/main/main.cpp)
-target_link_libraries(csvsum ${Boost_LIBRARIES} fort)
+target_link_libraries(csvsum ${Boost_LIBRARIES} fort argparse)
 
 set(DOCTEST_DOWNLOAD_DIR ${CMAKE_CURRENT_BINARY_DIR}/doctest)
 file(DOWNLOAD
