@@ -12,8 +12,8 @@ endif()
 set(FORT_ENABLE_TESTING OFF CACHE INTERNAL "")
 add_subdirectory(third-party/libfort)
 
-add_executable(example src/examples/main.cpp)
-target_link_libraries(example ${Boost_LIBRARIES} fort)
+add_executable(csvsum src/main/main.cpp)
+target_link_libraries(csvsum ${Boost_LIBRARIES} fort)
 
 set(DOCTEST_DOWNLOAD_DIR ${CMAKE_CURRENT_BINARY_DIR}/doctest)
 file(DOWNLOAD
@@ -25,6 +25,7 @@ file(DOWNLOAD
 add_executable(test_csv_sum test/unittest_main.cpp)
 target_include_directories(test_csv_sum PRIVATE ${DOCTEST_DOWNLOAD_DIR})
 target_link_libraries(test_csv_sum ${Boost_LIBRARIES} fort)
+target_compile_definitions(test_csv_sum PUBLIC TEST_RESOURCE_DIR="${CMAKE_CURRENT_SOURCE_DIR}/test/data/")
 
 enable_testing()
 add_test(test_csv_sum test_csv_sum)

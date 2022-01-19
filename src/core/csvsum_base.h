@@ -8,6 +8,7 @@
 #include <unordered_map>
 #include <queue>
 #include <chrono>
+#include <fstream>
 
 using std::vector;
 
@@ -34,48 +35,8 @@ namespace csvsum
         char escape_char;
         char quotechar;
         int no_most_freq;
-
-        void _summarize(bool sample, int sample_size, bool verbose)
-        {
-            std::cout << "Reading path: " << this->path << std::endl;
-
-            long long file_size;
-            long long no_rows;
-            vector<int> row_sizes;
-
-            auto begin = std::chrono::steady_clock::now();
-            vector<vector<std::string>> lines = read_lines(row_sizes, file_size, no_rows);
-            auto end = std::chrono::steady_clock::now();
-            if (verbose)
-                std::cout << "Time to read file = " << std::chrono::duration_cast<std::chrono::milliseconds>(end - begin).count() << "[ms]" << std::endl;
-
-            begin = std::chrono::steady_clock::now();
-            vector<std::string> col_names;
-            vector<std::unordered_map<std::string, double>> cell_contents = read_csv_cells(lines, col_names, row_sizes);
-
-            vector<CellStats> stats;
-            for (auto &cell_content : cell_contents)
-            {
-                CellStats c;
-                analyze_col(cell_content, c);
-                stats.push_back(c);
-            }
-            end = std::chrono::steady_clock::now();
-            if (verbose)
-                std::cout << "Time to compute statistics = " << std::chrono::duration_cast<std::chrono::milliseconds>(end - begin).count() << "[ms]" << std::endl;
-
-            if (header && stats.size() > col_names.size()) {
-                std::cerr << "Some rows contained more values than the number of columns in the header. This could be due to a parsing error (e.g., a misspecified quoting or espace character)." << std::endl;
-            }
-
-            std::cout << (sample ? "Estimated total" : "Total") << " no rows: " << no_rows << std::endl;
-            if (sample)
-            {
-                std::cout << "Statistics on sample of size " << sample_size << ":" << std::endl;
-            }
-
-            print_summary(stats, col_names);
-        }
+        bool sample;
+        int no_samples;
 
         void print_summary(vector<CellStats> &stats, vector<std::string> &col_names)
         {
@@ -116,7 +77,7 @@ namespace csvsum
                 table << c.no_distinct_vals;
 
                 std::string mf = "";
-                for (int i = c.most_frequent.size() - 1; i >= 0; i--)
+                for (int i = 0; i < c.most_frequent.size(); i++)
                 {
                     if (mf != "")
                         mf += ", ";
@@ -256,19 +217,76 @@ namespace csvsum
             while (!q.empty())
             {
                 c.most_frequent.push_back(q.top().second);
+                // more frequent elements first
+                std::reverse(c.most_frequent.begin(), c.most_frequent.end());
                 q.pop();
             }
         }
 
-        virtual vector<vector<std::string>> read_lines(vector<int> &row_sizes, long long &file_size, long long &no_rows) = 0;
+        virtual vector<vector<std::string>> read_lines(vector<int> &row_sizes, long long &file_size, long long &no_rows, std::ifstream &in) = 0;
 
     public:
-        CSVSummarizer(std::string path, bool header, char sep, char line_break, char escape_char, char quotechar, int no_most_freq)
-            : path(path), header(header), sep(sep), line_break(line_break), escape_char(escape_char), quotechar(quotechar), no_most_freq(no_most_freq)
+        CSVSummarizer(std::string path, bool header, char sep, char line_break, char escape_char, char quotechar, int no_most_freq, bool sample, int no_samples)
+            : sample(sample), no_samples(no_samples), path(path), header(header), sep(sep), line_break(line_break), escape_char(escape_char), quotechar(quotechar), no_most_freq(no_most_freq)
         {
         }
 
-        virtual void summarize(bool verbose) = 0;
+        vector<CellStats> obtain_stats(bool verbose, vector<std::string> &col_names, long long &no_rows)
+        {
+            //std::cout << "Reading path: " << this->path << std::endl;
+
+            long long file_size;
+            vector<CellStats> stats;
+            vector<int> row_sizes;
+
+            // read file (either sample or full)
+            auto begin = std::chrono::steady_clock::now();
+            std::ifstream in(path);
+            if (in.fail()) {
+                std::cerr << "Could not read file " << this->path << std::endl;
+                return stats;
+            }
+            vector<vector<std::string>> lines = read_lines(row_sizes, file_size, no_rows, in);
+            in.close();
+            auto end = std::chrono::steady_clock::now();
+            if (verbose)
+                std::cout << "Time to read file = " << std::chrono::duration_cast<std::chrono::milliseconds>(end - begin).count() << "[ms]" << std::endl;
+
+            begin = std::chrono::steady_clock::now();
+            vector<std::unordered_map<std::string, double>> cell_contents = read_csv_cells(lines, col_names, row_sizes);
+
+            for (auto &cell_content : cell_contents)
+            {
+                CellStats c;
+                analyze_col(cell_content, c);
+                stats.push_back(c);
+            }
+            end = std::chrono::steady_clock::now();
+            if (verbose)
+                std::cout << "Time to compute statistics = " << std::chrono::duration_cast<std::chrono::milliseconds>(end - begin).count() << "[ms]" << std::endl;
+
+            if (header && stats.size() > col_names.size()) {
+                std::cerr << "Some rows contained more values than the number of columns in the header. This could be due to a parsing error (e.g., a misspecified quoting or espace character)." << std::endl;
+            }
+
+            return stats;
+        }
+
+        void summarize(bool verbose)
+        {
+            vector<std::string> col_names;
+            long long no_rows;
+            vector<CellStats> stats = obtain_stats(verbose, col_names, no_rows);
+            if (stats.size() == 0) return;
+
+            std::cout << (sample ? "Estimated total" : "Total") << " no rows: " << no_rows << std::endl;
+            if (sample)
+            {
+                std::cout << "Statistics on sample of size " << no_samples << ":" << std::endl;
+            }
+
+            print_summary(stats, col_names);
+        }
     };
 
 }
