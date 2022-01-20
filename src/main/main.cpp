@@ -91,7 +91,7 @@ int main(int argc, char *argv[])
 
     if (no_samples == 0)
     {
-        auto s = new csvsum::FullCSVSummarizer(path, header, sep, line_break, escape_char, quotechar, no_most_freq);
+        std::unique_ptr<csvsum::FullCSVSummarizer> s(new csvsum::FullCSVSummarizer(path, header, sep, line_break, escape_char, quotechar, no_most_freq));
         s->summarize(verbose);
     }
     else
@@ -101,7 +101,7 @@ int main(int argc, char *argv[])
             std::cerr << "Quotechars are not supported for sampling mode." << std::endl;
             std::exit(1);
         }
-        auto s = new csvsum::SampleCSVSummarizer(path, header, sep, line_break, escape_char, no_most_freq, no_samples, block_read);
+        std::unique_ptr<csvsum::SampleCSVSummarizer> s(new csvsum::SampleCSVSummarizer(path, header, sep, line_break, escape_char, no_most_freq, no_samples, block_read));
         s->summarize(verbose);
     }
 
